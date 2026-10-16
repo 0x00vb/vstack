@@ -86,6 +86,7 @@ function removeBlock(file) {
 	else fs.rmSync(file);
 }
 
+const CLI = path.join(REPO, "skills", "vstack", "vstack.mjs");
 const kernel = fs.readFileSync(path.join(REPO, "rules", "kernel.md"), "utf8");
 
 function global() {
@@ -97,19 +98,18 @@ function global() {
 	log(UNINSTALL ? "Uninstalling vstack (global)" : "Installing vstack (global)");
 	for (const dir of skillDirs)
 		for (const s of SKILLS) UNINSTALL ? unlink(path.join(dir, s)) : link(path.join(REPO, "skills", s), path.join(dir, s));
-	UNINSTALL ? unlink(bin) : link(path.join(REPO, "bin", "vstack.mjs"), bin);
+	UNINSTALL ? unlink(bin) : link(CLI, bin);
 	for (const f of ruleFiles) UNINSTALL ? removeBlock(f) : putBlock(f, kernel);
 	if (UNINSTALL) return;
 
-	if (!DRY) fs.chmodSync(path.join(REPO, "bin", "vstack.mjs"), 0o755);
+	if (!DRY) fs.chmodSync(CLI, 0o755);
 	const onPath = (process.env.PATH ?? "").split(path.delimiter).includes(path.dirname(bin));
-	if (!onPath) log(`\n  ! ${tilde(path.dirname(bin))} is not on PATH. Add it, or alias vstack="node ${REPO}/bin/vstack.mjs"`);
+	if (!onPath) log(`\n  ! ${tilde(path.dirname(bin))} is not on PATH. Add it, or alias vstack="node ${CLI}"`);
 	log(`\nCursor reads ~/.agents/skills. It has no global rules file, so paste rules/kernel.md into
 Cursor Settings > Rules, or run: node install.mjs --project <repo>`);
 }
 
 function project() {
-	const dot = path.join(PROJECT, ".vstack");
 	const agentsSkills = path.join(PROJECT, ".agents", "skills");
 	const claudeSkills = path.join(PROJECT, ".claude", "skills");
 	const agentsMd = path.join(PROJECT, "AGENTS.md");
@@ -126,20 +126,9 @@ function project() {
 		}
 		removeBlock(agentsMd);
 		removeBlock(claudeMd);
-		log(`  kept   .vstack/ (your flows and principles). Delete it by hand if you want.`);
 		return;
 	}
 
-	const keepCustom = fs.existsSync(path.join(dot, "flows")) && !FORCE;
-	if (!DRY) fs.mkdirSync(dot, { recursive: true });
-	log(`  copy   .vstack/vstack.mjs`);
-	if (!DRY) fs.copyFileSync(path.join(REPO, "bin", "vstack.mjs"), path.join(dot, "vstack.mjs"));
-	if (keepCustom) log(`  keep   .vstack/flows and principles.md (--force overwrites)`);
-	else {
-		copyDir(path.join(REPO, "flows"), path.join(dot, "flows"));
-		log(`  copy   .vstack/principles.md`);
-		if (!DRY) fs.copyFileSync(path.join(REPO, "skills", "vstack", "principles.md"), path.join(dot, "principles.md"));
-	}
 	for (const s of SKILLS) {
 		copyDir(path.join(REPO, "skills", s), path.join(agentsSkills, s));
 		const at = path.join(claudeSkills, s);
@@ -149,13 +138,13 @@ function project() {
 		fs.rmSync(at, { recursive: true, force: true });
 		fs.symlinkSync(path.join("..", "..", ".agents", "skills", s), at, "dir");
 	}
-	const local = `${kernel.trim()}\nIf \`vstack\` is not on PATH, run \`node .vstack/vstack.mjs\` instead.`;
+	const local = `${kernel.trim()}\nIf \`vstack\` is not on PATH, run \`node .agents/skills/vstack/vstack.mjs\` instead.`;
 	putBlock(agentsMd, local);
 	const claude = fs.existsSync(claudeMd) ? fs.readFileSync(claudeMd, "utf8") : "";
 	if (claude.includes("@AGENTS.md")) log(`  rules  CLAUDE.md already imports AGENTS.md`);
 	else putBlock(claudeMd, "@AGENTS.md");
-	log(`\nCommit .vstack/, .agents/skills/, .claude/skills/, AGENTS.md and CLAUDE.md so the whole team gets it.
-Run \`node .vstack/vstack.mjs init\` to pin the test/types/lint commands in vstack.json.`);
+	log(`\nCommit .agents/skills/, .claude/skills/, AGENTS.md and CLAUDE.md so the whole team gets it.
+Run \`node .agents/skills/vstack/vstack.mjs init\` to pin the test/types/lint commands in vstack.json.`);
 }
 
 PROJECT ? project() : global();

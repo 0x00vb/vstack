@@ -1,0 +1,16 @@
+{
+	"name": "vstack",
+	"owner": {
+		"name": "Valentino Balatti"
+	},
+	"metadata": {
+		"description": "vstack: gated, token-lean workflows for coding agents."
+	},
+	"plugins": [
+		{
+			"name": "vstack",
+			"source": "./",
+			"description": "Gated, token-lean workflows for coding agents."
+		}
+	]
+}

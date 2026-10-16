@@ -6,7 +6,7 @@ import path from "node:path";
 import { beforeEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "vstack.mjs");
+const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "skills", "vstack", "vstack.mjs");
 let repo;
 
 function sh(cmd, args, cwd = repo) {

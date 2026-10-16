@@ -16,17 +16,31 @@ Gates are code, not paragraphs: the CLI runs your test, types, and lint commands
 
 ## Install
 
+No clone needed. Pick the line for your agent.
+
 ```bash
-git clone <this repo> ~/projects/vstack
+# Claude Code (skills, CLI on PATH, rules loaded at session start)
+claude plugin marketplace add 0x00vb/vstack && claude plugin install vstack@vstack
+#   or inside a session:  /plugin marketplace add 0x00vb/vstack   then   /plugin install vstack@vstack
+
+# Codex
+codex plugin marketplace add 0x00vb/vstack && codex plugin add vstack@vstack
+
+# Cursor, or any agent that reads Agent Skills (also works for Claude Code and Codex)
+npx skills add 0x00vb/vstack
+```
+
+The CLI ships inside the `vstack` skill folder, so every route above carries it. Only the Claude Code plugin puts `vstack` on PATH. Elsewhere the skill tells the agent to run `node <skill dir>/vstack.mjs`. For a global `vstack` command everywhere, plus the always-on rules in `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`, use the installer instead of a plugin:
+
+```bash
+git clone https://github.com/0x00vb/vstack ~/projects/vstack
 node ~/projects/vstack/install.mjs              # global: every repo, every agent
 node ~/projects/vstack/install.mjs --project .  # vendor into one repo for the team
 node ~/projects/vstack/install.mjs --dry-run    # see what it would touch
 node ~/projects/vstack/install.mjs --uninstall  # undo (add --project . for a repo)
 ```
 
-Global install puts symlinks at `~/.agents/skills/` (Codex, Cursor) and `~/.claude/skills/` (Claude Code), symlinks the CLI to `~/.local/bin/vstack`, and adds a short marked block to `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` (and `~/.gemini/GEMINI.md` if present). It never overwrites a file it did not create. `git pull` updates everything. Cursor has no global rules file, so paste `rules/kernel.md` into Settings > Rules or use project mode.
-
-Project install copies the CLI, flows, and principles into `.vstack/`, the skills into `.agents/skills/` (with `.claude/skills/` symlinks), and adds the block to `AGENTS.md`, plus `@AGENTS.md` in `CLAUDE.md`. Commit them. Teammates need only Node 20+.
+The global installer symlinks the skills into `~/.agents/skills/` (Codex, Cursor) and `~/.claude/skills/`, and the CLI to `~/.local/bin/vstack`. It adds a short marked block to `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, and `~/.gemini/GEMINI.md` if present, never overwrites a file it did not create, and updates with `git pull`. Project mode copies the skills into `.agents/skills/` (with `.claude/skills/` symlinks) and adds the block to `AGENTS.md`, plus `@AGENTS.md` in `CLAUDE.md`. Commit them, and teammates need only Node 20+. Use a plugin or the installer, not both, or the rules load twice.
 
 ## Use
 
@@ -65,7 +79,7 @@ One task per worktree (`git worktree add ../app-csv -b csv`). Each agent runs it
 
 ## Make it yours
 
-- **Flows** are JSON in `flows/`. A project can add or override them in `.vstack/flows/`. Step fields: `do`, `exit`, `must` (can't skip), `observed` (rejects predictions), `run` (gates: `test`, `types`, `lint`, `slop`, or any key in `checks`), `sizes`, `verified` (blocks if the code changed since the last gate run), and `principles` (tags to inline).
+- **Flows** are JSON in `skills/vstack/flows/`. A project can add or override them in `.vstack/flows/`. Step fields: `do`, `exit`, `must` (can't skip), `observed` (rejects predictions), `run` (gates: `test`, `types`, `lint`, `slop`, or any key in `checks`), `sizes`, `verified` (blocks if the code changed since the last gate run), and `principles` (tags to inline).
 - **Principles** are one line each in `skills/vstack/principles.md`, tagged by step. The CLI inlines only the matching ones.
 - When you catch an agent repeating a mistake, add a slop rule or a gate before you add prose.
 

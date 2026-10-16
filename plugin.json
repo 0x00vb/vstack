@@ -1,0 +1,11 @@
+{
+	"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+	"name": "vstack",
+	"version": "0.2.0",
+	"description": "Gated, token-lean workflows for coding agents: one step at a time, evidence and green checks required to advance.",
+	"author": { "name": "Valentino Balatti" },
+	"homepage": "https://github.com/0x00vb/vstack",
+	"repository": "https://github.com/0x00vb/vstack",
+	"license": "MIT",
+	"keywords": ["workflow", "state-machine", "review", "verification", "slop"]
+}

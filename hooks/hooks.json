@@ -1,0 +1,8 @@
+{
+	"description": "Load the vstack kernel rules at session start.",
+	"hooks": {
+		"SessionStart": [
+			{ "hooks": [{ "type": "command", "command": "cat \"${CLAUDE_PLUGIN_ROOT}/rules/kernel.md\"" }] }
+		]
+	}
+}

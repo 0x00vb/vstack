@@ -12,6 +12,10 @@ const STALE_MS = 2 * 60 * 60 * 1000;
 const HEDGE =
 	/\b(should|probably|likely|seems?|seemingly|i think|i believe|i assume|presumably|in theory|might|hopefully|looks (good|fine|correct|right))\b/i;
 
+process.stdout.on("error", (e) => {
+	if (e.code !== "EPIPE") throw e;
+	process.exit(0);
+});
 const out = (s = "") => process.stdout.write(`${s}\n`);
 class Exit extends Error {}
 function die(msg, code = 1) {
@@ -110,7 +114,7 @@ const cfg = () => (cfgCache ??= loadConfig());
 
 // ---------- flows ----------
 
-const flowDirs = () => [path.join(ROOT, ".vstack", "flows"), path.join(HERE, "flows"), path.join(HERE, "..", "flows")];
+const flowDirs = () => [path.join(ROOT, ".vstack", "flows"), path.join(HERE, "flows")];
 
 function listFlows() {
 	const names = new Set();
@@ -133,7 +137,6 @@ function principles(tags) {
 	const file = firstExisting([
 		path.join(ROOT, ".vstack", "principles.md"),
 		path.join(HERE, "principles.md"),
-		path.join(HERE, "..", "skills", "vstack", "principles.md"),
 	]);
 	if (!file || !tags) return [];
 	const want = new Set(tags.split(/\s+/));

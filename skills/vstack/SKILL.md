@@ -7,6 +7,8 @@ description: Run coding work as a gated state machine (feature, bugfix, refactor
 
 The `vstack` CLI holds the workflow. It prints one step at a time and refuses to advance without evidence and passing gates. Do not read the flow files. Follow what the CLI prints.
 
+If `vstack` is not on PATH, run `node <dir>/vstack.mjs` instead, where `<dir>` is the folder containing this SKILL.md. Needs Node 20+.
+
 ## Pick a flow
 
 | Task | Flow |
