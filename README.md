@@ -28,6 +28,8 @@
 
 ## Why vstack
 
+vstack is an alternative to [pstack](https://github.com/cursor/plugins/tree/main/pstack), which [Lauren Tan (@poteto)](https://x.com/poteto) made. The main ideas of vstack come from pstack: workflows as state machines, evidence before "done", and principles that keep code small. vstack is the version of these ideas that we use every day.
+
 AI agents write code quickly. Without control, an agent often does these things:
 
 - It says "done" before it runs the code.
@@ -35,17 +37,22 @@ AI agents write code quickly. Without control, an agent often does these things:
 - It adds `any` casts, empty `catch` blocks, and comments that repeat the code.
 - It forgets instructions when the context gets long.
 
-[pstack](https://github.com/cursor/plugins/tree/main/pstack) solves these problems with a large set of written rules. The agent must read the rules before it works. Each subagent reads them again. This uses many tokens.
+Both tools solve these problems. They put the workflow in different places:
 
-vstack uses the same ideas, but a small CLI holds the workflow. The agent reads only the current step. The CLI runs the checks, so the agent does not have to remember them.
+- pstack puts the workflow in skills. The agent reads the rules, the playbooks, and the principles.
+- vstack puts the workflow in a small CLI. The agent reads only the current step. The CLI runs the checks, so the agent does not have to remember them.
 
-| Measured, in characters | pstack | vstack |
-|---|---:|---:|
-| Skill descriptions, always in context | 11,539 | 793 |
-| Lead agent, one feature task | about 86,800 | about 11,200 |
-| Instructions for each subagent | 21,678 | about 1,000 |
+| | pstack | vstack |
+|---|---|---|
+| Where the workflow is | Skills that the agent reads | A CLI that prints one step at a time |
+| Scope | About 50 skills. Playbooks for PRs, CI, performance, many-agent programs, and design and review with many models. | 3 skills and 5 flows |
+| Agents | Cursor plugin | Claude Code, Codex, Cursor, and other agents that read Agent Skills |
+| Skill descriptions, always in context | 11,539 characters | 793 characters |
+| Instructions for one feature task | About 86,800 characters | About 11,200 characters |
 
-<sub>Method: pstack is the minimum set of files that its Feature playbook tells the lead agent to read. vstack is the skill file plus all output from the CLI during a complete size M feature task.</sub>
+<sub>Method: pstack is the minimum set of files that its Feature playbook tells the lead agent to read. vstack is the skill file plus all output from the CLI during a complete size M feature task. More instructions also give more capability. The numbers show a different design, not a better one.</sub>
+
+Use pstack if you work in Cursor and want the complete system. Use vstack if you want a small set of gates in any agent.
 
 ## Terms
 
@@ -601,4 +608,6 @@ The tests make temporary Git repositories and run the real CLI in them.
 
 ## Credits
 
-vstack uses ideas from [pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan. MIT license. See [LICENSE](LICENSE).
+vstack exists because of [pstack](https://github.com/cursor/plugins/tree/main/pstack) by [Lauren Tan (@poteto)](https://x.com/poteto). These parts of vstack come from pstack ideas: the flows, the principles, the subagent brief, the gates before "done", and the review triage. If you work in Cursor, try pstack.
+
+vstack has the MIT license. See [LICENSE](LICENSE). The pstack license is in [NOTICE](NOTICE).

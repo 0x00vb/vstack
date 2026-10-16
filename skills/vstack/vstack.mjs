@@ -154,7 +154,10 @@ function principles(tags) {
 const taskFile = (id) => path.join(TASKS, `${id}.json`);
 const pointerFile = () =>
 	path.join(STORE, "current", crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 12));
-const saveTask = (t) => writeAtomic(taskFile(t.id), JSON.stringify({ ...t, updated: Date.now() }, null, "\t"));
+const saveTask = (t) => {
+	const branch = t.worktree === ROOT ? git(["branch", "--show-current"]) || t.branch : t.branch;
+	writeAtomic(taskFile(t.id), JSON.stringify({ ...t, branch, updated: Date.now() }, null, "\t"));
+};
 
 function allTasks() {
 	if (!fs.existsSync(TASKS)) return [];

@@ -158,3 +158,10 @@ test("type escapes in test files warn instead of failing", () => {
 	assert.equal(r.code, 0, r.out);
 	assert.match(r.out, /⚠ src\/__tests__\/g\.test\.ts:1 type-escape/);
 });
+
+test("board shows the branch the agent switched to after start", () => {
+	vs("start", "feature", "branch later", "--size", "S");
+	sh("git", ["checkout", "-q", "-b", "feat/later"]);
+	vs("done", "goal: branch later. acceptance: board shows branch");
+	assert.match(vs("board").out, /branch-later\s+feature\s+S\s+2\/4 build\s+\S+\s+feat\/later/);
+});
