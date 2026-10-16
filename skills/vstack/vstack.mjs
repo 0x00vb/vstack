@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const VALUE_FLAGS = new Set(["size", "id", "task"]);
 const SIZES = ["S", "M", "L"];
+const STOP_WORDS = new Set(["a", "an", "the", "to", "for", "of", "in", "on", "and", "or", "with", "from", "into", "by", "at"]);
 const STALE_MS = 2 * 60 * 60 * 1000;
 const HEDGE =
 	/\b(should|probably|likely|seems?|seemingly|i think|i believe|i assume|presumably|in theory|might|hopefully|looks (good|fine|correct|right))\b/i;
@@ -192,6 +193,7 @@ const slug = (s) =>
 		.replace(/[^a-z0-9]+/g, " ")
 		.trim()
 		.split(" ")
+		.filter((w) => !STOP_WORDS.has(w))
 		.slice(0, 5)
 		.join("-") || "task";
 

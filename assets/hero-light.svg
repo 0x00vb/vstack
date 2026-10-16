@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="vstack: frame, design, build, verify, review, ship. A gate between each step.">
+<text x="60" y="112" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="68" font-weight="800" letter-spacing="-2" fill="#0f172a">vstack</text>
+<text x="62" y="156" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="23" fill="#57606a">Gated workflows for coding agents. One step at a time. Evidence to advance.</text>
+<path d="M682 222 C 682 186, 498 186, 498 218" fill="none" stroke="#bf8700" stroke-width="2" stroke-dasharray="5 5"/>
+<path d="M492 211 l6 8 l6 -8" fill="none" stroke="#bf8700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="590" y="188" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#bf8700">vstack back</text>
+<line x1="200" y1="252" x2="244" y2="252" stroke="#d0d7de" stroke-width="2"/>
+<circle cx="222" cy="252" r="11" fill="#ffffff" stroke="#1a7f37" stroke-width="2"/>
+<path d="M217 252 l3.5 3.5 l6.5 -7" fill="none" stroke="#1a7f37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="384" y1="252" x2="428" y2="252" stroke="#d0d7de" stroke-width="2"/>
+<circle cx="406" cy="252" r="11" fill="#ffffff" stroke="#1a7f37" stroke-width="2"/>
+<path d="M401 252 l3.5 3.5 l6.5 -7" fill="none" stroke="#1a7f37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="568" y1="252" x2="612" y2="252" stroke="#d0d7de" stroke-width="2"/>
+<circle cx="590" cy="252" r="11" fill="#ffffff" stroke="#1a7f37" stroke-width="2"/>
+<path d="M585 252 l3.5 3.5 l6.5 -7" fill="none" stroke="#1a7f37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="752" y1="252" x2="796" y2="252" stroke="#d0d7de" stroke-width="2"/>
+<circle cx="774" cy="252" r="11" fill="#ffffff" stroke="#1a7f37" stroke-width="2"/>
+<path d="M769 252 l3.5 3.5 l6.5 -7" fill="none" stroke="#1a7f37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="936" y1="252" x2="980" y2="252" stroke="#d0d7de" stroke-width="2"/>
+<circle cx="958" cy="252" r="11" fill="#ffffff" stroke="#1a7f37" stroke-width="2"/>
+<path d="M953 252 l3.5 3.5 l6.5 -7" fill="none" stroke="#1a7f37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="60" y="226" width="140" height="52" rx="26" fill="#ffffff" stroke="#afb8c1" stroke-width="1.5"/>
+<text x="130" y="259" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="600" fill="#0f172a">frame</text>
+<rect x="244" y="226" width="140" height="52" rx="26" fill="#ffffff" stroke="#afb8c1" stroke-width="1.5"/>
+<text x="314" y="259" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="600" fill="#0f172a">design</text>
+<rect x="428" y="226" width="140" height="52" rx="26" fill="#ffffff" stroke="#afb8c1" stroke-width="1.5"/>
+<text x="498" y="259" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="600" fill="#0f172a">build</text>
+<rect x="612" y="226" width="140" height="52" rx="26" fill="#4f46e5" stroke="#4f46e5" stroke-width="1.5"/>
+<text x="682" y="259" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="600" fill="#ffffff">verify</text>
+<rect x="796" y="226" width="140" height="52" rx="26" fill="#ffffff" stroke="#afb8c1" stroke-width="1.5"/>
+<text x="866" y="259" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="600" fill="#0f172a">review</text>
+<rect x="980" y="226" width="140" height="52" rx="26" fill="#ffffff" stroke="#afb8c1" stroke-width="1.5"/>
+<text x="1050" y="259" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="600" fill="#0f172a">ship</text>
+<text x="682" y="310" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#57606a">types · lint · test · slop</text>
+<g transform="translate(60 298)"><circle cx="8" cy="8" r="7" fill="#ffffff" stroke="#1a7f37" stroke-width="1.8"/><path d="M5 8 l2.2 2.2 l4 -4.4" fill="none" stroke="#1a7f37" stroke-width="1.8" stroke-linecap="round"/>
+<text x="24" y="13" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#57606a">gate: evidence and green checks</text></g>
+</svg>
