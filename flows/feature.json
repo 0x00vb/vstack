@@ -1,0 +1,52 @@
+{
+	"about": "New or changed behavior.",
+	"states": [
+		{
+			"id": "frame",
+			"must": true,
+			"do": "Write the goal in one sentence, who notices the change and how, acceptance criteria (checkable, one per line), and what is out of scope. Ask the user now only for a product call no experiment can settle. Settle everything else yourself.",
+			"exit": "goal, who notices, acceptance criteria, out of scope"
+		},
+		{
+			"id": "understand",
+			"sizes": ["M", "L"],
+			"do": "Read the code you will touch before changing it: entry points, the data shape flowing through, the closest existing pattern to copy, and every caller. Send bulk reading to a subagent if you can spawn one and keep only its summary.",
+			"exit": "file:line refs for entry points, data shape, pattern to follow, callers"
+		},
+		{
+			"id": "design",
+			"sizes": ["M", "L"],
+			"principles": "design",
+			"do": "Write the caller's usage first, then the types and signatures it implies, bodies unimplemented. Name the organizing structure. List what you will delete before what you will add. Size L: sketch two structurally different designs and pick one in a sentence.",
+			"exit": "usage sketch, data shape and its structure, chosen design and why, deletions"
+		},
+		{
+			"id": "build",
+			"principles": "build",
+			"do": "Implement the smallest diff that meets the acceptance criteria, against the design. To delegate, give a subagent `vstack brief` with SCOPE filled in, then read its diff yourself. Commit each unit once its check passes. If the design does not fit, go back and fix it (`vstack back design`) instead of absorbing workarounds.",
+			"exit": "what changed (files) and commits"
+		},
+		{
+			"id": "verify",
+			"must": true,
+			"observed": true,
+			"run": ["types", "lint", "test", "slop"],
+			"principles": "verify",
+			"do": "Gates run on `vstack done`. Prove the behavior on the real surface too: call the endpoint, run the CLI, open the page, read the actual value. Green tests prove the tests, not the feature. Check every acceptance criterion.",
+			"exit": "per acceptance criterion, what you ran and what you observed"
+		},
+		{
+			"id": "review",
+			"sizes": ["M", "L"],
+			"verified": true,
+			"do": "Use the vstack-review skill: a fresh-context reviewer on `vstack brief --review` (size L: two reviewers on different models). Triage every finding as act on, consider, noted, or dismissed. Fix the act-on items. If you changed code, run `vstack back verify`.",
+			"exit": "findings with triage, and what you fixed"
+		},
+		{
+			"id": "ship",
+			"verified": true,
+			"do": "Squash fixups into small ordered commits whose messages say why. PR description: what changed for whom, why this design, how it was verified (paste the evidence), risks. Push, open a PR, or merge only if the user authorized it. Otherwise stop with the branch ready.",
+			"exit": "commit SHAs and PR link, or 'ready on branch <name>'"
+		}
+	]
+}

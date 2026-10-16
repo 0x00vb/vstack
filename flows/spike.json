@@ -1,0 +1,30 @@
+{
+	"about": "Settle a design question by building a throwaway instead of guessing or asking.",
+	"states": [
+		{
+			"id": "question",
+			"must": true,
+			"do": "Name the decision and the observation that will settle it. Set a timebox.",
+			"exit": "decision, deciding observation, timebox"
+		},
+		{
+			"id": "sketch",
+			"do": "Build the cheapest throwaway that produces the observation, on a scratch branch or directory. Quality rules are relaxed here. Never merge it.",
+			"exit": "where the sketch lives and what it does"
+		},
+		{
+			"id": "observe",
+			"must": true,
+			"observed": true,
+			"principles": "verify",
+			"do": "Run it and record what happened. Numbers come with how you measured them.",
+			"exit": "what you ran and what you observed"
+		},
+		{
+			"id": "decide",
+			"must": true,
+			"do": "State the decision, what carries forward (types, approach, numbers), and delete or park the sketch. To build it for real, start a feature flow.",
+			"exit": "decision and what carries forward"
+		}
+	]
+}

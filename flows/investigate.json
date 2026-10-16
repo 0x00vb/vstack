@@ -1,0 +1,23 @@
+{
+	"about": "Read-only question: how does X work, why is Y like this, should we do A or B.",
+	"states": [
+		{
+			"id": "question",
+			"must": true,
+			"do": "Restate the question precisely and name the evidence that would answer it.",
+			"exit": "the question and what would answer it"
+		},
+		{
+			"id": "evidence",
+			"observed": true,
+			"do": "Gather it from the source: read code (cite file:line), run it, `git log -S`, blame, logs, tickets. Send bulk searching to a subagent. Label each claim measured, inferred, or guess.",
+			"exit": "labeled claims with refs"
+		},
+		{
+			"id": "answer",
+			"must": true,
+			"do": "Reply with the direct answer first, then the evidence, then what is still unknown and how to find out. This flow changes no code.",
+			"exit": "the answer you gave, in one sentence"
+		}
+	]
+}
