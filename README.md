@@ -403,7 +403,7 @@ The agent selects the flow and the size. Then it does each step that the CLI pri
 | `vstack check [gates]` | Runs the gates and does not change the step. |
 | `vstack slop` | Runs only the slop scan. |
 | `vstack brief` | Prints instructions for a subagent that has no other context. |
-| `vstack brief --review` | Prints a review prompt with the goal, the criteria, and the diff. |
+| `vstack brief --review` | Prints a compact review prompt with the goal, criteria, and up to 40,000 diff characters. |
 | `vstack board [--all]` | Shows all tasks in all worktrees of the repository. |
 | `vstack log` | Shows each step, its evidence, and the notes of the task. |
 | `vstack use <id>` | Selects a different task in this worktree. |
@@ -491,6 +491,8 @@ vstack brief --review | codex exec -
 vstack brief --review | claude -p
 vstack brief --review | cursor-agent -p
 ```
+
+For larger diffs, the prompt tells a local reviewer to run `git diff` for the remainder.
 
 The lead agent puts each finding in one group:
 

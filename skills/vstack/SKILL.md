@@ -5,7 +5,7 @@ description: Run coding work as a gated state machine (feature, bugfix, refactor
 
 # vstack
 
-The `vstack` CLI holds the workflow. It prints one step at a time and refuses to advance without evidence and passing gates. Do not read the flow files. Follow what the CLI prints.
+The CLI prints one step at a time and advances only with evidence and green gates. Do not read flow files or restate the workflow. Follow the current step.
 
 If `vstack` is not on PATH, run `node <dir>/vstack.mjs` instead, where `<dir>` is the folder containing this SKILL.md. Needs Node 20+.
 
@@ -19,7 +19,7 @@ If `vstack` is not on PATH, run `node <dir>/vstack.mjs` instead, where `<dir>` i
 | Read-only question | `investigate` |
 | Settle a design question by building a throwaway | `spike` |
 
-Size: `S` is one obvious change in one or two files and skips understand, design, and review. `M` is the default. `L` is cross-cutting or contested and gets two designs and two reviewers. A trivial edit (typo, one config value) needs no flow.
+Size: `S` is one obvious change in one or two files. `M` is the default. `L` is cross-cutting or contested. Trivial edits need no flow.
 
 ## Commands
 
@@ -39,16 +39,16 @@ If no `vstack.json` exists, checks are detected from the project. If detection i
 
 ## Evidence
 
-Say what you ran and what you saw. Quote output and test names in backticks. Observed steps reject predictions ("should work", "looks good"). A gate failure prints only the tail of the output. Fix it and run `vstack done` again.
+Say what you ran and saw. Quote output or test names. Observed steps reject predictions. Fix failed gates and run `vstack done` again.
 
 ## Subagents
 
-Give a subagent the `vstack brief` output with SCOPE filled in, not your whole context. Subagents do not run flows. You own their diff, so read it before you run `vstack done`. Run review on a different model from the builder when you can. If you cannot spawn subagents, do the step yourself.
+Give a subagent `vstack brief` with SCOPE filled in, not the full conversation. Subagents do not run flows. Read their diff before `vstack done`. When possible, use a different model for review.
 
 ## Autonomy
 
-Proceed on reversible work. Ask only for product calls you cannot settle by running something. Pause before irreversible or outward actions (push to shared branches, merge, deploy, delete data, message people) unless the user authorized them.
+Proceed on reversible work. Ask only for product decisions experiments cannot settle. Get authorization before irreversible or outward actions.
 
 ## Reply
 
-Lead with the outcome for the user. Then what you chose and why, how you verified it (the evidence), and open decisions. Short sentences. Label claims measured, inferred, or guess. Link only things you produced or read.
+Use short, plain sentences. Cover the outcome, every material implementation change and why, verification evidence, and unresolved items. Mention each once; omit the process recap. Label anything inferred or guessed.

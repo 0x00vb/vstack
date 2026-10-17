@@ -46,6 +46,9 @@ test("size S feature walks frame, build, verify, ship and skips the rest", () =>
 	assert.match(r.out, /\[feature 4\/4\] ship/);
 	r = vs("done", "ready on branch main, commit pending user ok");
 	assert.match(r.out, /complete/);
+	assert.match(r.out, /every material change and why/);
+	assert.match(r.out, /briefly in plain language/);
+	assert.match(r.out, /No process recap/);
 	assert.match(vs("log").out, /auto-skip understand: size S/);
 });
 
@@ -144,6 +147,24 @@ test("review brief carries intent and the diff", () => {
 	assert.match(r.out, /INTENT\s+brief me/);
 	assert.match(r.out, /CRITERIA\s+goal: brief/);
 	assert.match(r.out, /untracked: src\/f\.ts/);
+});
+
+test("worker brief is compact and requires a complete concise report", () => {
+	vs("start", "feature", "compact brief", "--size", "M");
+	vs("done", "goal: compact brief. acceptance: reports every change");
+	const r = vs("brief");
+	assert.match(r.out, /briefly explain every material change and why/);
+	assert.ok(r.out.split(/\s+/).length < 140, `brief has too many words: ${r.out}`);
+});
+
+test("review brief caps large diffs", () => {
+	vs("start", "feature", "bounded review", "--size", "M");
+	vs("done", "goal: bounded review. acceptance: cap embedded diff");
+	write("src/a.ts", `${"x".repeat(50_000)}TAIL_MARKER\n`);
+	const r = vs("brief", "--review");
+	assert.match(r.out, /… diff truncated\. Run: git diff/);
+	assert.doesNotMatch(r.out, /TAIL_MARKER/);
+	assert.ok(r.out.length < 42_000, `review brief is too large: ${r.out.length}`);
 });
 
 test("project flows override bundled ones", () => {

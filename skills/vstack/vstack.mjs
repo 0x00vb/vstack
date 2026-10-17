@@ -10,6 +10,7 @@ const VALUE_FLAGS = new Set(["size", "id", "task"]);
 const SIZES = ["S", "M", "L"];
 const STOP_WORDS = new Set(["a", "an", "the", "to", "for", "of", "in", "on", "and", "or", "with", "from", "into", "by", "at"]);
 const STALE_MS = 2 * 60 * 60 * 1000;
+const REVIEW_DIFF_LIMIT_CHARS = 40_000;
 const HEDGE =
 	/\b(should|probably|likely|seems?|seemingly|i think|i believe|i assume|presumably|in theory|might|hopefully|looks (good|fine|correct|right))\b/i;
 
@@ -489,7 +490,9 @@ function cmdDone({ flags, pos }) {
 	advance(t, flow);
 	saveTask(t);
 	if (t.status === "done") {
-		out(`✓ ${t.id} complete. Reply per the vstack skill: outcome first, choices and why, the evidence, open decisions.`);
+		out(
+			`✓ ${t.id} complete. Reply briefly in plain language: outcome; every material change and why; verification; unresolved items. No process recap.`,
+		);
 		return;
 	}
 	printStep(t);
@@ -546,39 +549,35 @@ function cmdBrief({ flags }) {
 		.filter(([, c]) => c)
 		.map(([n, c]) => `${n}: ${c}`);
 	if (flags.review) return reviewBrief(t, frame);
-	out(`You are implementing one scoped unit for a lead engineer who will review your diff.
+	out(`Implement one scoped unit. A lead will review the diff.
 GOAL      ${t?.goal ?? "<one sentence outcome>"}
 CONTEXT   ${frame ?? "<acceptance criteria, pointers to files>"}${design ? `\nDESIGN    ${design}` : ""}
 SCOPE     write only: <paths>. do not touch: <paths>
 ACCEPT    every acceptance criterion above, checkably met
 VERIFY    ${checks.length ? checks.join(" · ") : "<commands>"} · then exercise the behavior on the real surface
-RULES     name the data shape before logic. smallest diff that meets ACCEPT. no new abstractions without a second caller.
-          no narrating comments, no type escapes or lint suppressions, no swallowed errors, no debug output.
-          follow the closest existing pattern. commit each unit that passes its check.
-FORBIDDEN push, merge, rebase shared branches, edits outside SCOPE, editing tests to make them pass.
-REPORT    files changed · commands run and their results · deviations from DESIGN and why · open questions.
-          state facts you observed. label anything else inferred or guess.`);
+RULES     name the data shape first · smallest diff · existing patterns · no abstraction without two callers
+          no narrating comments, type escapes, suppressed checks, swallowed errors, or debug output
+FORBIDDEN push, merge, rebase shared branches, leave SCOPE, or change tests to hide failures
+REPORT    briefly explain every material change and why · verification commands/results · deviations · unresolved items
+          facts only; label inferences or guesses.`);
 }
 
 function reviewBrief(t, frame) {
 	const base = diffBase(t);
 	const diff = git(["diff", "--no-color", "--no-ext-diff", base]) ?? "";
 	const extra = untracked();
-	const limit = 120_000;
-	out(`You are a skeptical senior reviewer with no stake in this code. Find what would block a real PR.
+	out(`Review this diff. Report only PR blockers and meaningful risks.
 INTENT    ${t?.goal ?? "(infer from the diff and commit messages)"}${frame ? `\nCRITERIA  ${frame}` : ""}
-LOOK FOR  correctness: wrong logic, unhandled states, races, broken edge cases (empty, null, huge, concurrent, retry).
-          security and data: injection, authz gaps, secrets, destructive operations, migrations.
-          design: scattered conditionals that want a state machine or table, illegal states the types allow,
-          shallow wrappers, duplicated rules, abstractions with one caller, compatibility shims left behind.
-          slop: code that does not need to exist, narrating comments, defensive checks for impossible states,
-          tests that assert implementation instead of behavior, tests edited to pass.
-RULES     read surrounding code before claiming a bug. cite file:line. no style nitpicks a linter would catch.
-          say "no blocking issues" if that is the truth. do not edit files.
-OUTPUT    one line per finding: [blocker|major|minor] file:line. problem. why it matters. suggested fix.
-          then one line: overall verdict.
+CHECK     correctness and edge cases · races · security/data loss · needless complexity · behavior-level tests
+RULES     inspect surrounding code · cite file:line · no lint/style notes · do not edit
+OUTPUT    [blocker|major|minor] file:line · problem · impact · fix; then one-line verdict
+          say "no blocking issues" when there are none
 DIFF      against ${base.slice(0, 12)}${extra.length ? `, plus untracked: ${extra.join(", ")}` : ""}`);
-	out(diff.length > limit ? `${diff.slice(0, limit)}\n… diff truncated. Run: git diff ${base}` : diff || "(no tracked changes)");
+	out(
+		diff.length > REVIEW_DIFF_LIMIT_CHARS
+			? `${diff.slice(0, REVIEW_DIFF_LIMIT_CHARS)}\n… diff truncated. Run: git diff ${base}`
+			: diff || "(no tracked changes)",
+	);
 }
 
 function ago(ms) {
