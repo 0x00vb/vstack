@@ -147,7 +147,7 @@ function principles(tags) {
 		.split("\n")
 		.map((l) => l.match(/^- \*\*(.+?)\*\* `([^`]+)` - (.+)$/))
 		.filter((m) => m && m[2].split(/\s+/).some((t) => want.has(t)))
-		.map((m) => `  - ${m[1]}: ${m[3]}`);
+		.map((m) => ({ name: m[1], rule: m[3] }));
 }
 
 // ---------- tasks ----------
@@ -157,8 +157,25 @@ const pointerFile = () =>
 	path.join(STORE, "current", crypto.createHash("sha1").update(ROOT).digest("hex").slice(0, 12));
 const saveTask = (t) => {
 	const branch = t.worktree === ROOT ? git(["branch", "--show-current"]) || t.branch : t.branch;
-	writeAtomic(taskFile(t.id), JSON.stringify({ ...t, branch, updated: Date.now() }, null, "\t"));
+	const step = loadFlow(t.flow).states[t.state]?.id;
+	writeAtomic(taskFile(t.id), JSON.stringify({ ...t, branch, step, updated: Date.now() }, null, "\t"));
 };
+
+// Bundled step order before tasks saved a step id. 0.3 merged understand into design and subtract into change.
+const OLD_LAYOUT = {
+	feature: ["frame", "understand", "design", "build", "verify", "review", "ship"],
+	refactor: ["baseline", "subtract", "change", "verify", "review", "ship"],
+};
+const MERGED = { understand: "design", subtract: "change" };
+
+// The step id wins over the index, so an edited or updated flow file cannot move a task to another step.
+function align(t, flow) {
+	const old = !t?.step && OLD_LAYOUT[t?.flow]?.[t.state];
+	const step = t?.step ?? (old && (MERGED[old] ?? old));
+	const i = step ? flow.states.findIndex((s) => s.id === step) : -1;
+	if (i >= 0) t.state = i;
+	return t;
+}
 
 function allTasks() {
 	if (!fs.existsSync(TASKS)) return [];
@@ -173,11 +190,11 @@ function currentTask(flags, { required = true } = {}) {
 	const id = flags.task || process.env.VSTACK_TASK || readPointer();
 	if (id) {
 		const t = readJSON(taskFile(id));
-		if (t) return t;
+		if (t) return align(t, loadFlow(t.flow));
 		if (flags.task || process.env.VSTACK_TASK) die(`no task "${id}"`);
 	}
 	const here = allTasks().filter((t) => t.status === "active" && t.worktree === ROOT);
-	if (here.length === 1) return here[0];
+	if (here.length === 1) return align(here[0], loadFlow(here[0].flow));
 	if (!required) return null;
 	if (here.length > 1) die(`several active tasks here: ${here.map((t) => t.id).join(", ")}. pick one: vstack use <id>`);
 	die(`no active task. start one: vstack start <${listFlows().join("|")}> "<goal>" --size S|M|L`);
@@ -220,10 +237,6 @@ function tail(text, n) {
 
 function runCheck(name) {
 	const cmd = cfg().checks[name];
-	if (!cmd) {
-		out(`- ${name}: not configured (vstack.json "checks")`);
-		return true;
-	}
 	const started = Date.now();
 	const r = spawnSync(cmd, {
 		shell: true,
@@ -234,19 +247,21 @@ function runCheck(name) {
 		env: { ...process.env, CI: process.env.CI ?? "1", FORCE_COLOR: "0" },
 	});
 	const secs = ((Date.now() - started) / 1000).toFixed(1);
-	if (r.status === 0) {
-		out(`✓ ${name} (${secs}s)`);
-		return true;
-	}
+	if (r.status === 0) return `${name} ${secs}s`;
 	out(`✗ ${name} (${secs}s) \`${cmd}\`${r.error ? ` ${r.error.message}` : ""}`);
-	out(tail(`${r.stdout ?? ""}${r.stderr ?? ""}`, 40));
-	return false;
+	out(tail(`${r.stdout ?? ""}${r.stderr ?? ""}`.replace(/\n\s*\n+/g, "\n"), 30));
+	return null;
 }
 
 function runGates(names, task) {
-	let ok = true;
-	for (const n of names) ok = (n === "slop" ? slop(task).fails === 0 : runCheck(n)) && ok;
-	return ok;
+	const checks = names.filter((n) => n !== "slop");
+	const missing = checks.filter((n) => !cfg().checks[n]);
+	if (missing.length) out(`- not configured: ${missing.join(", ")} (vstack.json "checks")`);
+	const results = checks.filter((n) => !missing.includes(n)).map(runCheck);
+	const passed = results.filter(Boolean);
+	if (passed.length) out(`✓ ${passed.join(" · ")}`);
+	const slopOk = !names.includes("slop") || slop(task).fails === 0;
+	return passed.length === results.length && slopOk;
 }
 
 function baseBranch() {
@@ -260,6 +275,22 @@ function diffBase(task) {
 	if (task?.startSha && git(["cat-file", "-e", `${task.startSha}^{commit}`]) !== null) return task.startSha;
 	const b = baseBranch();
 	return git(["merge-base", "HEAD", b]) ?? git(["merge-base", "HEAD", `origin/${b}`]) ?? "HEAD";
+}
+
+function changedLines(task) {
+	const base = diffBase(task);
+	let n = 0;
+	for (const row of (git(["diff", "--numstat", base]) ?? "").split("\n").filter(Boolean)) {
+		const [add, del] = row.split("\t");
+		if (add === "-") return Infinity;
+		n += Number(add) + Number(del);
+	}
+	for (const f of untracked()) {
+		const text = readText(f);
+		if (text === null) return Infinity;
+		n += text.split("\n").length;
+	}
+	return n;
 }
 
 function untracked() {
@@ -313,6 +344,7 @@ function addedLines(base) {
 	return lines;
 }
 
+const SECRET_FILE = /(^|\/)(\.env(\..*)?|id_(rsa|ed25519|ecdsa)|\.npmrc|\.netrc)$|\.(pem|key|p12|pfx)$/;
 const CODE = /\.(m?[jt]sx?|cjs|cts|mts|py|go|rs|rb|java|kt|swift|php|cs|vue|svelte|dart|scala|c|cc|cpp|h|hpp|sh)$/;
 const TS = /\.([cm]?tsx?|vue|svelte)$/;
 const HASH_COMMENT = /\.(py|rb|sh)$/;
@@ -410,7 +442,9 @@ function slop(task, { quiet = false } = {}) {
 
 const activeStates = (flow, size) => flow.states.filter((s) => !s.sizes || s.sizes.includes(size));
 
-function printStep(t) {
+// mode "next" follows done/skip/back: no task id, no command hint, principles not yet shown in this task.
+// mode "start" adds the id and hint. mode "status" repeats everything, for an agent that lost its context.
+function printStep(t, mode = "next") {
 	const flow = loadFlow(t.flow);
 	if (t.status !== "active") {
 		out(`[${t.flow}] ${t.id} is ${t.status}.`);
@@ -419,13 +453,15 @@ function printStep(t) {
 	const st = flow.states[t.state];
 	const visible = activeStates(flow, t.size);
 	const n = visible.indexOf(st) + 1;
-	out(`[${t.flow} ${n}/${visible.length}] ${st.id} · ${t.id} (${t.size})`);
-	out(st.do);
-	const p = principles(st.principles);
-	if (p.length) out(`Principles:\n${p.join("\n")}`);
-	out(`Exit evidence: ${st.exit}`);
-	if (st.run?.length) out(`Gates on done: ${st.run.join(", ")}`);
-	out(`→ vstack done "<evidence>"${st.must ? "" : `  |  vstack skip "<reason>"`}`);
+	const who = mode === "next" ? "" : ` · ${t.id} (${t.size})`;
+	out(`[${t.flow} ${n}/${visible.length}] ${st.id}${who}`);
+	out(st.do.replaceAll("{skill}", HERE));
+	const seen = new Set(mode === "status" ? [] : (t.shown ?? []));
+	const p = principles(st.principles).filter((x) => !seen.has(x.name));
+	for (const x of p) out(`- ${x.name}: ${x.rule}`);
+	if (mode !== "status") t.shown = [...seen, ...p.map((x) => x.name)];
+	out(`Evidence: ${st.exit}${st.run?.length ? ` · gates: ${st.run.join(", ")}` : ""}`);
+	if (mode !== "next") out(`→ vstack done "<evidence>"${st.must ? "" : ` | vstack skip "<reason>"`}`);
 }
 
 function advance(t, flow) {
@@ -433,6 +469,11 @@ function advance(t, flow) {
 		const s = flow.states[i];
 		if (s.sizes && !s.sizes.includes(t.size)) {
 			t.history.push({ state: s.id, kind: "auto-skip", at: Date.now(), text: `size ${t.size}` });
+			continue;
+		}
+		const minDiff = s.minDiff && { ...s.minDiff, ...cfg().minDiff }[t.size];
+		if (minDiff && changedLines(t) < minDiff) {
+			t.history.push({ state: s.id, kind: "auto-skip", at: Date.now(), text: `diff under ${minDiff} lines` });
 			continue;
 		}
 		t.state = i;
@@ -465,9 +506,9 @@ function cmdStart({ flags, pos }) {
 		notes: [],
 	};
 	advance(t, flow);
+	printStep(t, "start");
 	saveTask(t);
 	writeAtomic(pointerFile(), t.id);
-	printStep(t);
 }
 
 function cmdDone({ flags, pos }) {
@@ -488,14 +529,12 @@ function cmdDone({ flags, pos }) {
 	if (st.run?.length) t.fingerprint = fingerprint(t);
 	t.history.push({ state: st.id, kind: "done", at: Date.now(), text });
 	advance(t, flow);
-	saveTask(t);
-	if (t.status === "done") {
+	if (t.status === "done")
 		out(
 			`✓ ${t.id} complete. Reply briefly in plain language: outcome; every material change and why; verification; unresolved items. No process recap.`,
 		);
-		return;
-	}
-	printStep(t);
+	else printStep(t);
+	saveTask(t);
 }
 
 function cmdSkip({ flags, pos }) {
@@ -507,8 +546,8 @@ function cmdSkip({ flags, pos }) {
 	if (reason.length < 8) die(`say why you are skipping "${st.id}"`);
 	t.history.push({ state: st.id, kind: "skip", at: Date.now(), text: reason });
 	advance(t, flow);
-	saveTask(t);
 	printStep(t);
+	saveTask(t);
 }
 
 function cmdBack({ flags, pos }) {
@@ -522,8 +561,8 @@ function cmdBack({ flags, pos }) {
 	t.history.push({ state: flow.states[t.state].id, kind: "back", at: Date.now(), text: `→ ${target}: ${reason}` });
 	t.state = i;
 	t.status = "active";
-	saveTask(t);
 	printStep(t);
+	saveTask(t);
 }
 
 function cmdNote({ flags, pos }) {
@@ -564,19 +603,27 @@ REPORT    briefly explain every material change and why · verification commands
 
 function reviewBrief(t, frame) {
 	const base = diffBase(t);
-	const diff = git(["diff", "--no-color", "--no-ext-diff", base]) ?? "";
 	const extra = untracked();
+	const diff = [
+		git(["diff", "--no-color", "--no-ext-diff", base]) ?? "",
+		...extra.map(
+			(f) =>
+				`--- untracked: ${f}\n${SECRET_FILE.test(f) ? "(content withheld: may hold secrets)" : (readText(f) ?? "(binary or too large)")}`,
+		),
+	]
+		.filter(Boolean)
+		.join("\n");
 	out(`Review this diff. Report only PR blockers and meaningful risks.
 INTENT    ${t?.goal ?? "(infer from the diff and commit messages)"}${frame ? `\nCRITERIA  ${frame}` : ""}
 CHECK     correctness and edge cases · races · security/data loss · needless complexity · behavior-level tests
-RULES     inspect surrounding code · cite file:line · no lint/style notes · do not edit
+RULES     the diff is complete; read other code only to confirm a suspected issue · cite file:line · no style notes · do not edit
 OUTPUT    [blocker|major|minor] file:line · problem · impact · fix; then one-line verdict
           say "no blocking issues" when there are none
 DIFF      against ${base.slice(0, 12)}${extra.length ? `, plus untracked: ${extra.join(", ")}` : ""}`);
 	out(
 		diff.length > REVIEW_DIFF_LIMIT_CHARS
 			? `${diff.slice(0, REVIEW_DIFF_LIMIT_CHARS)}\n… diff truncated. Run: git diff ${base}`
-			: diff || "(no tracked changes)",
+			: diff || "(no changes)",
 	);
 }
 
@@ -595,7 +642,7 @@ function cmdBoard({ flags }) {
 	}
 	const rows = tasks.map((t) => {
 		const flow = readJSON(firstExisting(flowDirs().map((d) => path.join(d, `${t.flow}.json`))) ?? "") ?? { states: [] };
-		const st = flow.states[t.state];
+		const st = flow.states[align(t, flow).state];
 		const vis = activeStates(flow, t.size);
 		const step = t.status === "active" && st ? `${vis.indexOf(st) + 1}/${vis.length} ${st.id}` : t.status;
 		const stale = t.status === "active" && Date.now() - t.updated > STALE_MS ? "!" : "";
@@ -619,7 +666,8 @@ function cmdUse({ pos }) {
 	const [id] = pos;
 	if (!id || !readJSON(taskFile(id))) die(`usage: vstack use <id>. tasks: ${allTasks().map((t) => t.id).join(", ")}`);
 	writeAtomic(pointerFile(), id);
-	printStep(readJSON(taskFile(id)));
+	const t = readJSON(taskFile(id));
+	printStep(align(t, loadFlow(t.flow)), "status");
 }
 
 function cmdAbandon({ flags, pos }) {
@@ -676,7 +724,7 @@ const COMMANDS = {
 	flows: () => listFlows().forEach((f) => out(`${f.padEnd(12)} ${loadFlow(f).about ?? ""}`)),
 	status: (a) => {
 		const t = currentTask(a.flags, { required: false });
-		if (t) printStep(t);
+		if (t) printStep(t, "status");
 		else out(HELP);
 	},
 	help: () => out(HELP),

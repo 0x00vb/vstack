@@ -4,27 +4,21 @@
 		{
 			"id": "frame",
 			"must": true,
-			"do": "Write the goal in one sentence, who notices the change and how, acceptance criteria (checkable, one per line), and what is out of scope. Ask the user now only for a product call no experiment can settle. Settle everything else yourself.",
+			"do": "State the goal in one sentence, who notices and how, checkable acceptance criteria, and out of scope. Ask the user only for product calls no experiment can settle.",
 			"exit": "goal, who notices, acceptance criteria, out of scope"
-		},
-		{
-			"id": "understand",
-			"sizes": ["M", "L"],
-			"do": "Read the code you will touch before changing it: entry points, the data shape flowing through, the closest existing pattern to copy, and every caller. Send bulk reading to a subagent if you can spawn one and keep only its summary.",
-			"exit": "file:line refs for entry points, data shape, pattern to follow, callers"
 		},
 		{
 			"id": "design",
 			"sizes": ["M", "L"],
 			"principles": "design",
-			"do": "Write the caller's usage first, then the types and signatures it implies, bodies unimplemented. Name the organizing structure. List what you will delete before what you will add. Size L: sketch two structurally different designs and pick one in a sentence.",
-			"exit": "usage sketch, data shape and its structure, chosen design and why, deletions"
+			"do": "Read only the code you will touch: entry points, data shape, callers, nearest pattern. Then write the caller's usage, the types it implies, and what you will delete. Size L: compare two different designs.",
+			"exit": "file:line refs, usage sketch, data shape, chosen design and why, deletions"
 		},
 		{
 			"id": "build",
 			"principles": "build",
-			"do": "Implement the smallest diff that meets the acceptance criteria, against the design. To delegate, give a subagent `vstack brief` with SCOPE filled in, then read its diff yourself. Commit each unit once its check passes. If the design does not fit, go back and fix it (`vstack back design`) instead of absorbing workarounds.",
-			"exit": "what changed (files) and commits"
+			"do": "Build the smallest diff that meets the criteria. To delegate, give a subagent `vstack brief` with SCOPE filled in and read its diff. Commit each unit that passes. If the design is wrong, run `vstack back design`.",
+			"exit": "files changed and commits"
 		},
 		{
 			"id": "verify",
@@ -32,20 +26,21 @@
 			"observed": true,
 			"run": ["types", "lint", "test", "slop"],
 			"principles": "verify",
-			"do": "Gates run on `vstack done`. Prove the behavior on the real surface too: call the endpoint, run the CLI, open the page, read the actual value. Green tests prove the tests, not the feature. Check every acceptance criterion.",
-			"exit": "per acceptance criterion, what you ran and what you observed"
+			"do": "Prove each acceptance criterion on the real surface: call the endpoint, run the CLI, open the page, read the value. Green tests prove only the tests.",
+			"exit": "per criterion, what you ran and what you saw"
 		},
 		{
 			"id": "review",
 			"sizes": ["M", "L"],
+			"minDiff": { "M": 20 },
 			"verified": true,
-			"do": "Use the vstack-review skill: a fresh-context reviewer on `vstack brief --review` (size L: two reviewers on different models). Triage every finding as act on, consider, noted, or dismissed. Fix the act-on items. If you changed code, run `vstack back verify`.",
-			"exit": "findings with triage, and what you fixed"
+			"do": "Give `vstack brief --review` to a fresh reviewer that does not share your context (size L: two, on different models). Triage each finding: act on, consider, noted, dismissed. Fix act-on items, then `vstack back verify` if code changed. Details: {skill}/review.md",
+			"exit": "findings with triage, and fixes"
 		},
 		{
 			"id": "ship",
 			"verified": true,
-			"do": "Squash fixups into small ordered commits whose messages say why. PR description: what changed for whom, why this design, how it was verified (paste the evidence), risks. Push, open a PR, or merge only if the user authorized it. Otherwise stop with the branch ready.",
+			"do": "Make small ordered commits whose messages say why. PR text: what changed for whom, why this design, the evidence, risks. Push, open a PR, or merge only if the user authorized it.",
 			"exit": "commit SHAs and PR link, or 'ready on branch <name>'"
 		}
 	]

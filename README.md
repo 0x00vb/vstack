@@ -45,12 +45,12 @@ Both tools solve these problems. They put the workflow in different places:
 | | pstack | vstack |
 |---|---|---|
 | Where the workflow is | Skills that the agent reads | A CLI that prints one step at a time |
-| Scope | About 50 skills. Playbooks for PRs, CI, performance, many-agent programs, and design and review with many models. | 3 skills and 5 flows |
+| Scope | About 50 skills. Playbooks for PRs, CI, performance, many-agent programs, and design and review with many models. | 1 skill and 5 flows |
 | Agents | Cursor plugin | Claude Code, Codex, Cursor, and other agents that read Agent Skills |
-| Skill descriptions, always in context | 11,539 characters | 793 characters |
-| Instructions for one feature task | About 86,800 characters | About 11,200 characters |
+| Skill descriptions, always in context | 11,539 characters | 293 characters |
+| Instructions for one feature task | About 86,800 characters | About 6,600 characters |
 
-<sub>Method: pstack is the minimum set of files that its Feature playbook tells the lead agent to read. vstack is the skill file plus all output from the CLI during a complete size M feature task. More instructions also give more capability. The numbers show a different design, not a better one.</sub>
+<sub>Method: pstack is the minimum set of files that its Feature playbook tells the lead agent to read. vstack is the rules, the skill file, the review file, and all output from the CLI during a complete size M feature task. More instructions also give more capability. The numbers show a different design, not a better one.</sub>
 
 Use pstack if you work in Cursor and want the complete system. Use vstack if you want a small set of gates in any agent.
 
@@ -110,9 +110,8 @@ $ vstack done "it should work now"
 "verify" needs observed evidence, not predictions. Run it and say what you saw. Quote output or test names in backticks.
 
 $ vstack done "ran \`curl -s localhost:3000/api/attendees.csv\` and saw 3 rows"
-- types: not configured (vstack.json "checks")
-- lint: not configured (vstack.json "checks")
-✓ test (0.1s)
+- not configured: types, lint (vstack.json "checks")
+✓ test 0.1s
 ✗ slop: 2 fail, 1 warn, 5 added lines since cce02acf
   ✗ src/csv.ts:1 type-escape: type escape hatch. Model the type
       export function toCsv(rows: any[]) {
@@ -120,6 +119,7 @@ $ vstack done "ran \`curl -s localhost:3000/api/attendees.csv\` and saw 3 rows"
       // Loop over the rows
   ✗ src/csv.ts:3 swallowed-error: error swallowed. Handle it or let it propagate
       try { return rows.map(r => r.name).join("\n") } catch (e) {}
+  intentional? append "vstack-ok" to the line, or set slop.off / slop.ignore in vstack.json
 gate failed, still on "verify". Fix and run vstack done again, or vstack back <step> "<why>".
 ```
 
@@ -133,9 +133,8 @@ vstack has five flows. Each flow is a JSON file in [`skills/vstack/flows/`](skil
 stateDiagram-v2
     direction LR
     [*] --> frame
-    frame --> understand: M, L
+    frame --> design: M, L
     frame --> build: S
-    understand --> design
     design --> build
     build --> verify
     verify --> review: M, L
@@ -148,7 +147,7 @@ stateDiagram-v2
     classDef must fill:#4f46e5,stroke:#3730a3,color:#ffffff
     classDef opt fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b
     class frame, verify must
-    class understand, design, build, review, ship opt
+    class design, build, review, ship opt
 ```
 
 The dark steps are mandatory. The agent cannot skip them. The agent can skip a light step only with a reason, for example `vstack skip "one-line config change"`.
@@ -156,11 +155,10 @@ The dark steps are mandatory. The agent cannot skip them. The agent can skip a l
 | Step | What the agent does | Gates |
 |---|---|---|
 | `frame` | Writes the goal, who sees the change, the acceptance criteria, and what is out of scope. | Evidence |
-| `understand` | Reads the code that the change touches: entry points, data shape, callers, and the nearest pattern to copy. | Evidence |
-| `design` | Writes the caller's code first, then the types. Names the data structure. Lists the code to delete. | Evidence |
+| `design` | Reads only the code that the change touches: entry points, data shape, callers, and the nearest pattern. Then writes the caller's code first, then the types. Lists the code to delete. | Evidence |
 | `build` | Makes the smallest change that meets the criteria. Commits each unit that passes. | Evidence |
 | `verify` | Runs the feature on the real surface (endpoint, CLI, or page). Examines each criterion. | Observed evidence, types, lint, test, slop |
-| `review` | Gets a review from a reviewer with no shared context. Sorts each finding. | Code is the same as at `verify` |
+| `review` | Gets a review from a reviewer with no shared context. Sorts each finding. At size M, the CLI skips this step if the diff has fewer than 20 changed lines. | Code is the same as at `verify` |
 | `ship` | Makes small, ordered commits. Writes the PR description. Pushes only with permission. | Code is the same as at `verify` |
 
 ### Other flows
@@ -177,7 +175,7 @@ flowchart LR
     end
     subgraph refactor["refactor · same behavior, new structure"]
         direction LR
-        r1["baseline"]:::must --> r2["subtract"]:::opt --> r3["change"]:::opt --> r4["verify"]:::must --> r5["review"]:::opt --> r6["ship"]:::opt
+        r1["baseline"]:::must --> r2["change"]:::opt --> r3["verify"]:::must --> r4["review"]:::opt --> r5["ship"]:::opt
     end
     subgraph bugfix["bugfix · a reported defect"]
         direction LR
@@ -206,8 +204,8 @@ The agent selects a size when it starts the task.
 
 | Size | Use it for | Effect |
 |---|---|---|
-| `S` | One clear change in one or two files. | The flow skips `understand`, `design`, `review`, `subtract`, and `regression-test`. Diff budget: 200 added lines. |
-| `M` | Most work. This is the default. | The flow includes all steps. Diff budget: 800 added lines. |
+| `S` | One clear change in one or two files. | The flow skips `design`, `review`, and `regression-test`. Diff budget: 200 added lines. |
+| `M` | Most work. This is the default. | The flow includes all steps. It skips `review` if the diff has fewer than 20 changed lines. Diff budget: 800 added lines. |
 | `L` | A change across many modules, or a design that people disagree about. | The design step asks for two different designs. The review step asks for two reviewers on different models. |
 
 A very small edit, for example a typo, does not need a task.
@@ -403,7 +401,7 @@ The agent selects the flow and the size. Then it does each step that the CLI pri
 | `vstack check [gates]` | Runs the gates and does not change the step. |
 | `vstack slop` | Runs only the slop scan. |
 | `vstack brief` | Prints instructions for a subagent that has no other context. |
-| `vstack brief --review` | Prints a compact review prompt with the goal, criteria, and up to 40,000 diff characters. |
+| `vstack brief --review` | Prints a review prompt with the goal, the criteria, and up to 40,000 characters of the diff and the new files. |
 | `vstack board [--all]` | Shows all tasks in all worktrees of the repository. |
 | `vstack log` | Shows each step, its evidence, and the notes of the task. |
 | `vstack use <id>` | Selects a different task in this worktree. |
@@ -492,7 +490,7 @@ vstack brief --review | claude -p
 vstack brief --review | cursor-agent -p
 ```
 
-For larger diffs, the prompt tells a local reviewer to run `git diff` for the remainder.
+The prompt contains the diff and the content of new files. Thus the reviewer reads other code only to examine a possible problem. If the diff is larger than the limit, the prompt tells the reviewer to run `git diff`.
 
 The lead agent puts each finding in one group:
 
@@ -519,7 +517,8 @@ The CLI finds the checks automatically. To set them yourself, run `vstack init` 
 		"off": ["todo"],
 		"ignore": ["**/generated/**"],
 		"budget": { "S": 200, "M": 800 }
-	}
+	},
+	"minDiff": { "M": 20 }
 }
 ```
 
@@ -530,6 +529,7 @@ The CLI finds the checks automatically. To set them yourself, run `vstack init` 
 | `slop.off` | Slop rules to disable. |
 | `slop.ignore` | Files that the slop scan does not examine. |
 | `slop.budget` | The maximum number of added lines for each size. |
+| `minDiff` | For each size, the smallest diff (in changed lines) that gets a review. `{ "M": 0 }` gets a review for each diff. |
 | `timeoutMs` | The time limit for each check. The default is 20 minutes. |
 
 The CLI uses these files to find the checks:
@@ -570,16 +570,17 @@ A flow is a JSON file. To add a flow or replace a flow in one repository, put th
 | `sizes` | The sizes that include the step, for example `["M", "L"]`. |
 | `verified` | The CLI refuses if the code changed after the last gate run. |
 | `principles` | Tags. The CLI adds the principles with these tags to the step. |
+| `minDiff` | For each size, the CLI skips the step if the diff has fewer changed lines. |
 
 ### Principles
 
 The principles are in [`skills/vstack/principles.md`](skills/vstack/principles.md). Each principle is one line with tags:
 
 ```md
-- **Smallest diff** `build` - The least code that meets the criteria. No speculative options, layers, or config.
+- **Subtract before adding** `build` - Delete dead and speculative code first, then build on the simpler base.
 ```
 
-The CLI adds a principle to a step only when the step has a tag of that principle. The agent never reads the full list.
+The CLI adds a principle to a step only when the step has a tag of that principle. Each principle appears one time in a task. The agent never reads the full list. `vstack` with no command shows all principles of the current step again.
 
 When an agent makes the same mistake again and again, add a slop rule or a gate. Do not add more text.
 
@@ -587,9 +588,9 @@ When an agent makes the same mistake again and again, add a slop rule or a gate.
 
 ```text
 skills/
-  vstack/            Main skill: SKILL.md, the CLI, flows, principles
-  vstack-review/     Review with no shared context, and the triage rules
-  vstack-parallel/   Rules for many agents at the same time
+  vstack/            The skill: SKILL.md, the CLI, flows, principles
+    review.md        Review with no shared context, and the triage rules
+    parallel.md      Rules for many agents at the same time
 bin/vstack           Wrapper that the Claude Code plugin puts on the PATH
 rules/kernel.md      The short rules that load in each session
 hooks/hooks.json     Loads the rules when a Claude Code session starts

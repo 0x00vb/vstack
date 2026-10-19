@@ -10,14 +10,14 @@
 		{
 			"id": "evidence",
 			"observed": true,
-			"do": "Gather it from the source: read code (cite file:line), run it, `git log -S`, blame, logs, tickets. Send bulk searching to a subagent. Label each claim measured, inferred, or guess.",
+			"do": "Gather it from the source: code (cite file:line), runs, `git log -S`, logs. Label each claim measured, inferred, or guess.",
 			"exit": "labeled claims with refs"
 		},
 		{
 			"id": "answer",
 			"must": true,
-			"do": "Reply with the direct answer first, then the evidence, then what is still unknown and how to find out. This flow changes no code.",
-			"exit": "the answer you gave, in one sentence"
+			"do": "Reply with the answer first, then the evidence, then what is unknown and how to find out. Change no code.",
+			"exit": "the answer, in one sentence"
 		}
 	]
 }

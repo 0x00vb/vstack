@@ -6,36 +6,30 @@
 			"must": true,
 			"observed": true,
 			"run": ["types", "lint", "test"],
-			"do": "Gates run on `vstack done` and must be green before you change anything. Also capture behavior to compare against later: a sample run, a snapshot, or a script's output.",
-			"exit": "green gates plus the captured behavior and how to re-capture it"
-		},
-		{
-			"id": "subtract",
-			"sizes": ["M", "L"],
-			"principles": "build",
-			"do": "Delete first: dead code, one-caller wrappers, stale flags, redundant validation. Commit deletions on their own so a reviewer sees them alone.",
-			"exit": "what you deleted, commits"
+			"do": "Gates must pass before you change anything. Capture behavior to compare later: a sample run, a snapshot, or script output.",
+			"exit": "the captured behavior and how to capture it again"
 		},
 		{
 			"id": "change",
 			"principles": "design build",
-			"do": "Move in steps that each end green, and commit each one. For repetitive edits, write a codemod or script and keep it. A new API means migrating every caller and deleting the old one in the same change. No compatibility shims.",
-			"exit": "steps taken, commits, the codemod if any"
+			"do": "Delete first (dead code, one-caller wrappers, stale flags) in its own commit. Then move in steps that each pass and get a commit. Script repetitive edits and keep the script. Migrate every caller of a new API and delete the old one. No shims.",
+			"exit": "deletions, steps, commits, the script if any"
 		},
 		{
 			"id": "verify",
 			"must": true,
 			"observed": true,
 			"run": ["types", "lint", "test", "slop"],
-			"do": "Gates run on `vstack done`. Re-capture the baseline behavior and compare it. Any difference is a bug in the refactor.",
-			"exit": "re-captured behavior matches baseline (how you compared)"
+			"do": "Capture the baseline behavior again and compare. Any difference is a refactor bug.",
+			"exit": "captured behavior matches baseline (how you compared)"
 		},
 		{
 			"id": "review",
 			"sizes": ["M", "L"],
+			"minDiff": { "M": 20 },
 			"verified": true,
-			"do": "Use the vstack-review skill on `vstack brief --review`, telling the reviewer behavior must be identical. Fix the act-on items. If you changed code, run `vstack back verify`.",
-			"exit": "findings with triage, and what you fixed"
+			"do": "Give `vstack brief --review` to a fresh reviewer and say behavior must be identical. Fix act-on items, then `vstack back verify` if code changed. Details: {skill}/review.md",
+			"exit": "findings with triage, and fixes"
 		},
 		{
 			"id": "ship",

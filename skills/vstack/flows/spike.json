@@ -4,26 +4,26 @@
 		{
 			"id": "question",
 			"must": true,
-			"do": "Name the decision and the observation that will settle it. Set a timebox.",
+			"do": "Name the decision, the observation that settles it, and a timebox.",
 			"exit": "decision, deciding observation, timebox"
 		},
 		{
 			"id": "sketch",
-			"do": "Build the cheapest throwaway that produces the observation, on a scratch branch or directory. Quality rules are relaxed here. Never merge it.",
-			"exit": "where the sketch lives and what it does"
+			"do": "Build the cheapest throwaway that gives the observation, on a scratch branch or folder. Quality rules are relaxed. Never merge it.",
+			"exit": "where the sketch is and what it does"
 		},
 		{
 			"id": "observe",
 			"must": true,
 			"observed": true,
 			"principles": "verify",
-			"do": "Run it and record what happened. Numbers come with how you measured them.",
-			"exit": "what you ran and what you observed"
+			"do": "Run it and record what happened. Give each number with how you measured it.",
+			"exit": "what you ran and what you saw"
 		},
 		{
 			"id": "decide",
 			"must": true,
-			"do": "State the decision, what carries forward (types, approach, numbers), and delete or park the sketch. To build it for real, start a feature flow.",
+			"do": "State the decision and what carries forward. Delete or park the sketch. To build it for real, start a feature flow.",
 			"exit": "decision and what carries forward"
 		}
 	]

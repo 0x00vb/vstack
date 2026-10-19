@@ -35,7 +35,7 @@ test("size S feature walks frame, build, verify, ship and skips the rest", () =>
 	assert.match(r.out, /\[feature 1\/4\] frame/);
 	r = vs("done", "goal: export b. acceptance: b === 2");
 	assert.match(r.out, /\[feature 2\/4\] build/);
-	assert.match(r.out, /Smallest diff/, "build step inlines build principles");
+	assert.match(r.out, /Subtract before adding/, "build step inlines build principles");
 	write("src/b.ts", "export const b = 2;\n");
 	r = vs("done", "added src/b.ts exporting b");
 	assert.match(r.out, /verify/);
@@ -49,7 +49,7 @@ test("size S feature walks frame, build, verify, ship and skips the rest", () =>
 	assert.match(r.out, /every material change and why/);
 	assert.match(r.out, /briefly in plain language/);
 	assert.match(r.out, /No process recap/);
-	assert.match(vs("log").out, /auto-skip understand: size S/);
+	assert.match(vs("log").out, /auto-skip design: size S/);
 });
 
 test("observed steps reject predictions but allow quoted test names", () => {
@@ -147,6 +147,57 @@ test("review brief carries intent and the diff", () => {
 	assert.match(r.out, /INTENT\s+brief me/);
 	assert.match(r.out, /CRITERIA\s+goal: brief/);
 	assert.match(r.out, /untracked: src\/f\.ts/);
+	assert.match(r.out, /export const f = 42;/, "untracked file content is inlined");
+});
+
+test("principles print once per task, status repeats them", () => {
+	vs("start", "feature", "dedupe principles", "--size", "M");
+	let r = vs("done", "goal: dedupe. acceptance: data shape printed once");
+	assert.match(r.out, /Data shape first/, "design shows it first");
+	r = vs("done", "design: one shown list on the task");
+	assert.match(r.out, /\[feature 3\/6\] build\n/);
+	assert.match(r.out, /Subtract before adding/);
+	assert.doesNotMatch(r.out, /Data shape first/, "build does not repeat it");
+	assert.match(vs().out, /Data shape first/, "status shows every principle");
+});
+
+test("unconfigured checks share one line, passing checks share one line", () => {
+	vs("start", "feature", "gate lines", "--size", "S");
+	vs("done", "goal: gate lines. acceptance: compact");
+	vs("done", "built nothing at all");
+	const r = vs("done", "ran `node -e 0` and saw exit 0");
+	assert.match(r.out, /- not configured: types, lint/);
+	assert.match(r.out, /✓ test \d/);
+});
+
+test("review auto-skips a small size M diff and runs on a large one", () => {
+	vs("start", "feature", "tiny diff", "--size", "M");
+	vs("done", "goal: tiny. acceptance: review skipped");
+	vs("done", "design: one line change");
+	write("src/a.ts", "export const a = 2;\n");
+	vs("done", "changed src/a.ts");
+	let r = vs("done", "ran `node -e 0` and saw exit 0");
+	assert.match(r.out, /\] ship/);
+	assert.match(vs("log").out, /auto-skip review: diff under 20 lines/);
+
+	vs("start", "feature", "big diff", "--size", "M");
+	vs("done", "goal: big. acceptance: review runs");
+	vs("done", "design: many lines");
+	write("src/big.ts", Array.from({ length: 30 }, (_, i) => `export const v${i} = ${i};`).join("\n"));
+	vs("done", "added src/big.ts");
+	r = vs("done", "ran `node -e 0` and saw exit 0");
+	assert.match(r.out, /\] review/);
+});
+
+test("vstack.json minDiff overrides the flow threshold", () => {
+	write("vstack.json", JSON.stringify({ checks: { test: "node -e 0" }, minDiff: { M: 0 } }));
+	sh("git", ["commit", "-qam", "cfg"]);
+	vs("start", "feature", "always review", "--size", "M");
+	vs("done", "goal: always. acceptance: review runs");
+	vs("done", "design: config override");
+	write("src/a.ts", "export const a = 3;\n");
+	vs("done", "changed src/a.ts");
+	assert.match(vs("done", "ran `node -e 0` and saw exit 0").out, /\] review/);
 });
 
 test("worker brief is compact and requires a complete concise report", () => {
@@ -165,6 +216,44 @@ test("review brief caps large diffs", () => {
 	assert.match(r.out, /… diff truncated\. Run: git diff/);
 	assert.doesNotMatch(r.out, /TAIL_MARKER/);
 	assert.ok(r.out.length < 42_000, `review brief is too large: ${r.out.length}`);
+});
+
+test("a flow file edited mid-task keeps the task on its step", () => {
+	const flow = (ids) => JSON.stringify({ states: ids.map((id) => ({ id, do: `do ${id}`, exit: "x" })) });
+	write(".vstack/flows/edit.json", flow(["one", "two", "three"]));
+	vs("start", "edit", "edited flow");
+	vs("done", "finished step one");
+	write(".vstack/flows/edit.json", flow(["one", "two", "three"].filter((id) => id !== "one")));
+	assert.match(vs().out, /\[edit 1\/2\] two/);
+	assert.match(vs("done", "finished step two").out, /\[edit 2\/2\] three/);
+});
+
+test("tasks saved before step ids map old indexes to the merged steps", () => {
+	vs("start", "feature", "legacy task", "--size", "M");
+	const dir = sh("git", ["rev-parse", "--git-common-dir"]).out.trim();
+	const file = path.join(repo, dir, "vstack", "tasks", "legacy-task.json");
+	const set = (state) => {
+		const t = JSON.parse(fs.readFileSync(file, "utf8"));
+		delete t.step;
+		fs.writeFileSync(file, JSON.stringify({ ...t, state }));
+	};
+	set(1);
+	assert.match(vs().out, /\] design/, "old understand maps to design");
+	set(3);
+	assert.match(vs().out, /\] build/, "old build index 3 stays build");
+});
+
+test("review never auto-skips a diff with binary files, brief withholds secret files", () => {
+	vs("start", "feature", "binary diff", "--size", "M");
+	vs("done", "goal: binary. acceptance: review runs");
+	vs("done", "design: add an image");
+	fs.writeFileSync(path.join(repo, "logo.png"), Buffer.from([0, 1, 2, 0, 255]));
+	write(".env.local", "API_KEY=sk-secret\n");
+	vs("done", "added logo.png");
+	assert.match(vs("done", "ran `node -e 0` and saw exit 0").out, /\] review/);
+	const r = vs("brief", "--review");
+	assert.match(r.out, /untracked: \.env\.local\n\(content withheld/);
+	assert.doesNotMatch(r.out, /sk-secret/);
 });
 
 test("project flows override bundled ones", () => {

@@ -5,7 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO = path.dirname(fileURLToPath(import.meta.url));
-const SKILLS = ["vstack", "vstack-review", "vstack-parallel"];
+const SKILLS = ["vstack"];
+const LEGACY = ["vstack-review", "vstack-parallel"];
 const START = "<!-- vstack:start -->";
 const END = "<!-- vstack:end -->";
 
@@ -96,8 +97,10 @@ function global() {
 	const bin = path.join(HOME, ".local", "bin", "vstack");
 
 	log(UNINSTALL ? "Uninstalling vstack (global)" : "Installing vstack (global)");
-	for (const dir of skillDirs)
+	for (const dir of skillDirs) {
+		for (const s of LEGACY) unlink(path.join(dir, s));
 		for (const s of SKILLS) UNINSTALL ? unlink(path.join(dir, s)) : link(path.join(REPO, "skills", s), path.join(dir, s));
+	}
 	UNINSTALL ? unlink(bin) : link(CLI, bin);
 	for (const f of ruleFiles) UNINSTALL ? removeBlock(f) : putBlock(f, kernel);
 	if (UNINSTALL) return;
@@ -116,14 +119,14 @@ function project() {
 	const claudeMd = path.join(PROJECT, "CLAUDE.md");
 
 	log(`${UNINSTALL ? "Uninstalling" : "Installing"} vstack into ${PROJECT}`);
+	for (const s of UNINSTALL ? [...LEGACY, ...SKILLS] : LEGACY) {
+		for (const p of [path.join(agentsSkills, s), path.join(claudeSkills, s)])
+			if (lstat(p)) {
+				log(`  remove ${p}`);
+				if (!DRY) fs.rmSync(p, { recursive: true, force: true });
+			}
+	}
 	if (UNINSTALL) {
-		for (const s of SKILLS) {
-			for (const p of [path.join(agentsSkills, s), path.join(claudeSkills, s)])
-				if (lstat(p)) {
-					log(`  remove ${p}`);
-					if (!DRY) fs.rmSync(p, { recursive: true, force: true });
-				}
-		}
 		removeBlock(agentsMd);
 		removeBlock(claudeMd);
 		return;

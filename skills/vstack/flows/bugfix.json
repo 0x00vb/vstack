@@ -5,27 +5,27 @@
 			"id": "reproduce",
 			"must": true,
 			"observed": true,
-			"do": "Reproduce the bug on the same surface the user hit before you look for a fix. Record exact steps and expected vs actual. If you cannot reproduce it, report what you tried and stop. Do not fix blind.",
+			"do": "Reproduce the bug on the surface the user hit, before you look for a fix. If you cannot reproduce it, report what you tried and stop.",
 			"exit": "exact steps, expected, actual (quoted output)"
 		},
 		{
 			"id": "root-cause",
 			"must": true,
 			"principles": "debug",
-			"do": "Trace from the symptom back to the first place the system went wrong. That is where the fix goes, not where the bug surfaced.",
-			"exit": "causal chain ending at file:line, and why the code there is wrong"
+			"do": "Trace from the symptom back to the first place the system went wrong. The fix goes there, not where the bug surfaced.",
+			"exit": "causal chain ending at file:line, and why that code is wrong"
 		},
 		{
 			"id": "regression-test",
 			"sizes": ["M", "L"],
 			"observed": true,
-			"do": "Write a test that asserts the user-visible behavior and fails now for the reported reason. Run it and confirm the failure matches the bug, not a setup error.",
+			"do": "Write a test of the user-visible behavior that fails now for the reported reason, not a setup error. Run it.",
 			"exit": "test name and its failing output"
 		},
 		{
 			"id": "fix",
 			"principles": "build",
-			"do": "Make the smallest change at the root cause. No unrelated cleanup in this diff. Commit it.",
+			"do": "Make the smallest change at the root cause. No unrelated cleanup. Commit it.",
 			"exit": "what changed and why it removes the cause"
 		},
 		{
@@ -34,20 +34,21 @@
 			"observed": true,
 			"run": ["types", "lint", "test", "slop"],
 			"principles": "verify",
-			"do": "Gates run on `vstack done`. Re-run the exact reproduction steps and confirm the expected result. The regression test passes now.",
-			"exit": "repro steps now produce the expected result (quoted), test passes"
+			"do": "Re-run the exact reproduction and confirm the expected result. The regression test passes now.",
+			"exit": "repro now gives the expected result (quoted), test passes"
 		},
 		{
 			"id": "review",
 			"sizes": ["M", "L"],
+			"minDiff": { "M": 20 },
 			"verified": true,
-			"do": "Use the vstack-review skill on `vstack brief --review`. Triage every finding. Fix the act-on items. If you changed code, run `vstack back verify`.",
-			"exit": "findings with triage, and what you fixed"
+			"do": "Give `vstack brief --review` to a fresh reviewer that does not share your context. Triage each finding. Fix act-on items, then `vstack back verify` if code changed. Details: {skill}/review.md",
+			"exit": "findings with triage, and fixes"
 		},
 		{
 			"id": "ship",
 			"verified": true,
-			"do": "Commit message and PR say: the symptom, the root cause, the fix, how it was verified. Push, open a PR, or merge only if the user authorized it.",
+			"do": "Commit and PR text: symptom, root cause, fix, evidence. Push, open a PR, or merge only if the user authorized it.",
 			"exit": "commit SHAs and PR link, or 'ready on branch <name>'"
 		}
 	]

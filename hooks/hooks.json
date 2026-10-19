@@ -1,8 +1,15 @@
 {
-	"description": "Load the vstack kernel rules at session start.",
+	"description": "Load the vstack kernel rules at session start, unless a rules file already has them.",
 	"hooks": {
 		"SessionStart": [
-			{ "hooks": [{ "type": "command", "command": "cat \"${CLAUDE_PLUGIN_ROOT}/rules/kernel.md\"" }] }
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "grep -qs 'vstack:start' \"$HOME/.claude/CLAUDE.md\" \"${CLAUDE_PROJECT_DIR:-.}/CLAUDE.md\" \"${CLAUDE_PROJECT_DIR:-.}/AGENTS.md\" || cat \"${CLAUDE_PLUGIN_ROOT}/rules/kernel.md\""
+					}
+				]
+			}
 		]
 	}
 }
