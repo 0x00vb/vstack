@@ -213,9 +213,45 @@ test("review brief caps large diffs", () => {
 	vs("done", "goal: bounded review. acceptance: cap embedded diff");
 	write("src/a.ts", `${"x".repeat(50_000)}TAIL_MARKER\n`);
 	const r = vs("brief", "--review");
-	assert.match(r.out, /… diff truncated\. Run: git diff/);
+	assert.match(r.out, /… diff truncated, not shown in full: src\/a\.ts \(\+1 -1\)\. Run: git diff \w+ -- <file>/);
 	assert.doesNotMatch(r.out, /TAIL_MARKER/);
 	assert.ok(r.out.length < 42_000, `review brief is too large: ${r.out.length}`);
+});
+
+test("review brief lists lockfiles without their diff and keeps whole files under the cap", () => {
+	write("package-lock.json", "{}\n");
+	sh("git", ["add", "."]);
+	sh("git", ["commit", "-qm", "lock"]);
+	vs("start", "feature", "dep bump", "--size", "M");
+	write("package-lock.json", `${"\"lock\": 1,\n".repeat(5000)}`);
+	write("src/a.ts", `${"y".repeat(39_000)}\n`);
+	write("src/z.ts", "export const z = GUARD_MARKER;\n");
+	const r = vs("brief", "--review");
+	assert.match(r.out, /OMITTED   lockfiles and generated files: package-lock\.json \(\+5000 -1\)/);
+	assert.doesNotMatch(r.out, /"lock": 1/);
+	assert.match(r.out, /GUARD_MARKER/, "a small file after a big one still fits");
+	assert.ok(r.out.length < 42_000, `review brief is too large: ${r.out.length}`);
+	assert.match(r.out, /\+y{100}/);
+	assert.doesNotMatch(r.out, /diff truncated/);
+});
+
+test("failing check drops runtime stack frames and package-manager boilerplate", () => {
+	const script = [
+		"console.log('> app@1.0.0 test');",
+		"console.log('> node --test');",
+		"console.log('AssertionError: 2 !== 3');",
+		"console.log('    at fn (/repo/a.test.js:3:9)');",
+		"console.log('    at Test.run (node:internal/test_runner/test:1118:25)');",
+		"console.log('    at x (/repo/node_modules/lib/index.js:1:1)');",
+		"console.log('    at node:internal/main/run_main_module:28:49');",
+		"console.log('npm error Lifecycle script `test` failed with error:');",
+		"process.exit(1);",
+	].join("");
+	write("vstack.json", JSON.stringify({ checks: { test: `node -e "${script}"` } }));
+	const r = vs("check", "test");
+	assert.equal(r.code, 1);
+	assert.match(r.out, /AssertionError: 2 !== 3\n {4}at fn \(\/repo\/a\.test\.js:3:9\)/);
+	assert.doesNotMatch(r.out.split("\n").slice(1).join("\n"), /node:internal|node_modules|> app@|> node --test|Lifecycle/);
 });
 
 test("a flow file edited mid-task keeps the task on its step", () => {

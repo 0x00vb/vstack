@@ -232,7 +232,7 @@ sequenceDiagram
         P-->>V: Exit codes and output
         Note over V: Scan the diff for slop
         alt A gate fails
-            V-->>A: Last 40 lines of output. The step does not change.
+            V-->>A: Last 30 lines of output, without stack frames from the runtime or node_modules. The step does not change.
         else All gates pass
             Note over V: Save the evidence and a fingerprint of the diff
             V-->>A: The next step only
@@ -245,7 +245,7 @@ sequenceDiagram
 | The evidence has fewer than 12 characters. | The CLI refuses. |
 | The step needs observed evidence, and the evidence contains a prediction such as "should", "probably", or "looks good". Text in quotes or backticks is not examined. | The CLI refuses. |
 | The step needs verified code, and the diff changed after the last gate run. A rebase also changes the diff. | The CLI refuses and tells the agent to run `vstack back verify`. |
-| A check fails. | The CLI prints the last 40 lines of output. The step does not change. |
+| A check fails. | The CLI removes stack frames from the runtime and from `node_modules`, and the exit messages of npm, pnpm, and yarn. Then it prints the last 30 lines of output. The step does not change. |
 | The slop scan finds a failure. | The CLI prints each finding with its file and line. The step does not change. |
 
 The CLI prints one line for each check that passes. It prints the full error output only for a check that fails. This keeps the agent's context small.
@@ -401,7 +401,7 @@ The agent selects the flow and the size. Then it does each step that the CLI pri
 | `vstack check [gates]` | Runs the gates and does not change the step. |
 | `vstack slop` | Runs only the slop scan. |
 | `vstack brief` | Prints instructions for a subagent that has no other context. |
-| `vstack brief --review` | Prints a review prompt with the goal, the criteria, and up to 40,000 characters of the diff and the new files. |
+| `vstack brief --review` | Prints a review prompt with the goal, the criteria, and up to 40,000 characters of the diff and the new files. It shows complete files only. It gives only the name and line counts of lockfiles, minified files, source maps, and files that do not fit. |
 | `vstack board [--all]` | Shows all tasks in all worktrees of the repository. |
 | `vstack log` | Shows each step, its evidence, and the notes of the task. |
 | `vstack use <id>` | Selects a different task in this worktree. |
@@ -518,6 +518,7 @@ The CLI finds the checks automatically. To set them yourself, run `vstack init` 
 		"ignore": ["**/generated/**"],
 		"budget": { "S": 200, "M": 800 }
 	},
+	"review": { "omit": ["**/generated/**"] },
 	"minDiff": { "M": 20 }
 }
 ```
@@ -529,6 +530,7 @@ The CLI finds the checks automatically. To set them yourself, run `vstack init` 
 | `slop.off` | Slop rules to disable. |
 | `slop.ignore` | Files that the slop scan does not examine. |
 | `slop.budget` | The maximum number of added lines for each size. |
+| `review.omit` | Files that `vstack brief --review` gives only by name and line counts. Lockfiles, `*.min.js`, `*.min.css`, and `*.map` are always on this list. |
 | `minDiff` | For each size, the smallest diff (in changed lines) that gets a review. `{ "M": 0 }` gets a review for each diff. |
 | `timeoutMs` | The time limit for each check. The default is 20 minutes. |
 

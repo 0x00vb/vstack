@@ -230,6 +230,17 @@ function lastEvidence(t, stateId) {
 
 // ---------- gates ----------
 
+// Runtime stack frames and package-manager exit boilerplate. Dropped so the tail holds the failure itself.
+const LOG_NOISE =
+	/^\s+at (.*\()?node:|^\s+at .*node_modules[/\\]|^npm (ERR!|error)( (code|path|workspace|location|command|Lifecycle script|A complete log|errno)\b|\s*$)|^\s*ELIFECYCLE\b|^error Command failed with exit code|^info Visit https:\/\/yarnpkg\.com/;
+const NPM_BANNER = /^> \S*@\S* \S+$/;
+
+function quiet(text) {
+	const lines = text.replace(/\n\s*\n+/g, "\n").split("\n");
+	const kept = lines.filter((l, i) => !LOG_NOISE.test(l) && !NPM_BANNER.test(l) && !(l.startsWith("> ") && NPM_BANNER.test(lines[i - 1] ?? "")));
+	return (kept.some((l) => l.trim()) ? kept : lines).join("\n").replace(/^\s*\n/, "");
+}
+
 function tail(text, n) {
 	const lines = text.trimEnd().split("\n");
 	return (lines.length > n ? [`  … ${lines.length - n} lines above`, ...lines.slice(-n)] : lines).join("\n");
@@ -249,7 +260,7 @@ function runCheck(name) {
 	const secs = ((Date.now() - started) / 1000).toFixed(1);
 	if (r.status === 0) return `${name} ${secs}s`;
 	out(`✗ ${name} (${secs}s) \`${cmd}\`${r.error ? ` ${r.error.message}` : ""}`);
-	out(tail(`${r.stdout ?? ""}${r.stderr ?? ""}`.replace(/\n\s*\n+/g, "\n"), 30));
+	out(tail(quiet(`${r.stdout ?? ""}${r.stderr ?? ""}`), 30));
 	return null;
 }
 
@@ -345,6 +356,8 @@ function addedLines(base) {
 }
 
 const SECRET_FILE = /(^|\/)(\.env(\..*)?|id_(rsa|ed25519|ecdsa)|\.npmrc|\.netrc)$|\.(pem|key|p12|pfx)$/;
+const NOISE_FILE =
+	/(^|\/)(package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?|Cargo\.lock|poetry\.lock|uv\.lock|Pipfile\.lock|composer\.lock|Gemfile\.lock|go\.sum)$|\.min\.(js|css)$|\.map$/;
 const CODE = /\.(m?[jt]sx?|cjs|cts|mts|py|go|rs|rb|java|kt|swift|php|cs|vue|svelte|dart|scala|c|cc|cpp|h|hpp|sh)$/;
 const TS = /\.([cm]?tsx?|vue|svelte)$/;
 const HASH_COMMENT = /\.(py|rb|sh)$/;
@@ -601,30 +614,60 @@ REPORT    briefly explain every material change and why · verification commands
           facts only; label inferences or guesses.`);
 }
 
+function diffFiles(base) {
+	const tracked = (git(["diff", "--no-color", "--no-ext-diff", base]) ?? "")
+		.split(/^(?=diff --git )/m)
+		.filter(Boolean)
+		.map((text) => {
+			const body = text.includes("\n@@") ? text.slice(text.indexOf("\n@@")) : "";
+			return {
+				file: text.match(/^\+\+\+ b\/(.+)$/m)?.[1] ?? text.match(/^diff --git a\/(.+?) b\//)?.[1] ?? "?",
+				text: text.replace(/\n$/, ""),
+				add: (body.match(/^\+/gm) ?? []).length,
+				del: (body.match(/^-/gm) ?? []).length,
+			};
+		});
+	const extra = untracked().map((f) => {
+		const body = SECRET_FILE.test(f) ? "(content withheld: may hold secrets)" : (readText(f) ?? "(binary or too large)");
+		return { file: f, text: `--- untracked: ${f}\n${body}`, add: body.split("\n").length, del: 0 };
+	});
+	return [...tracked, ...extra];
+}
+
+const counted = (files) =>
+	[...files.slice(0, 20).map((f) => `${f.file} (+${f.add} -${f.del})`), ...(files.length > 20 ? [`${files.length - 20} more`] : [])].join(", ");
+
+// Whole files in diff order, so one huge file cannot push every other change out of the brief.
 function reviewBrief(t, frame) {
 	const base = diffBase(t);
 	const extra = untracked();
-	const diff = [
-		git(["diff", "--no-color", "--no-ext-diff", base]) ?? "",
-		...extra.map(
-			(f) =>
-				`--- untracked: ${f}\n${SECRET_FILE.test(f) ? "(content withheld: may hold secrets)" : (readText(f) ?? "(binary or too large)")}`,
-		),
-	]
-		.filter(Boolean)
-		.join("\n");
+	const omit = (cfg().review?.omit ?? []).map(globToRe);
+	const files = diffFiles(base);
+	const noise = files.filter((f) => NOISE_FILE.test(f.file) || omit.some((r) => r.test(f.file)));
+	const shown = [];
+	const over = [];
+	let room = REVIEW_DIFF_LIMIT_CHARS;
+	for (const f of files.filter((f) => !noise.includes(f))) {
+		if (f.text.length > room) over.push(f);
+		else {
+			shown.push(f.text);
+			room -= f.text.length + 1;
+		}
+	}
+	if (over.length && room >= 2000) {
+		const head = over[0].text.slice(0, over[0].text.lastIndexOf("\n", room));
+		const hidden = over[0].text.split("\n").length - head.split("\n").length;
+		shown.push(`${head}\n… ${over[0].file} cut here, ${hidden} more lines`);
+	}
 	out(`Review this diff. Report only PR blockers and meaningful risks.
 INTENT    ${t?.goal ?? "(infer from the diff and commit messages)"}${frame ? `\nCRITERIA  ${frame}` : ""}
 CHECK     correctness and edge cases · races · security/data loss · needless complexity · behavior-level tests
 RULES     the diff is complete; read other code only to confirm a suspected issue · cite file:line · no style notes · do not edit
 OUTPUT    [blocker|major|minor] file:line · problem · impact · fix; then one-line verdict
           say "no blocking issues" when there are none
-DIFF      against ${base.slice(0, 12)}${extra.length ? `, plus untracked: ${extra.join(", ")}` : ""}`);
-	out(
-		diff.length > REVIEW_DIFF_LIMIT_CHARS
-			? `${diff.slice(0, REVIEW_DIFF_LIMIT_CHARS)}\n… diff truncated. Run: git diff ${base}`
-			: diff || "(no changes)",
-	);
+DIFF      against ${base.slice(0, 12)}${extra.length ? `, plus untracked: ${extra.join(", ")}` : ""}${noise.length ? `\nOMITTED   lockfiles and generated files: ${counted(noise)}` : ""}`);
+	out(shown.join("\n") || "(no changes)");
+	if (over.length) out(`… diff truncated, not shown in full: ${counted(over)}. Run: git diff ${base} -- <file>`);
 }
 
 function ago(ms) {

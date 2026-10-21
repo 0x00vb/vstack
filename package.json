@@ -1,6 +1,6 @@
 {
 	"name": "vstack",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "Gated, token-lean workflows for coding agents. Works with Claude Code, Codex, Cursor and anything that reads Agent Skills.",
 	"type": "module",
 	"bin": { "vstack": "skills/vstack/vstack.mjs" },
