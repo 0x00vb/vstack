@@ -230,6 +230,7 @@ test("review brief lists lockfiles without their diff and keeps whole files unde
 	assert.match(r.out, /OMITTED   lockfiles and generated files: package-lock\.json \(\+5000 -1\)/);
 	assert.doesNotMatch(r.out, /"lock": 1/);
 	assert.match(r.out, /GUARD_MARKER/, "a small file after a big one still fits");
+	assert.ok(r.out.length < 42_000, `review brief is too large: ${r.out.length}`);
 	assert.match(r.out, /\+y{100}/);
 	assert.doesNotMatch(r.out, /diff truncated/);
 });
@@ -242,6 +243,7 @@ test("failing check drops runtime stack frames and package-manager boilerplate",
 		"console.log('    at fn (/repo/a.test.js:3:9)');",
 		"console.log('    at Test.run (node:internal/test_runner/test:1118:25)');",
 		"console.log('    at x (/repo/node_modules/lib/index.js:1:1)');",
+		"console.log('    at node:internal/main/run_main_module:28:49');",
 		"console.log('npm error Lifecycle script `test` failed with error:');",
 		"process.exit(1);",
 	].join("");

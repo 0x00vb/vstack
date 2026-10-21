@@ -232,12 +232,12 @@ function lastEvidence(t, stateId) {
 
 // Runtime stack frames and package-manager exit boilerplate. Dropped so the tail holds the failure itself.
 const LOG_NOISE =
-	/^\s+at .*(node_modules[/\\]|\(node:)|^npm (ERR!|error)( (code|path|workspace|location|command|Lifecycle script|A complete log|errno)\b|\s*$)|ELIFECYCLE|^error Command failed with exit code|^info Visit https:\/\/yarnpkg\.com/;
+	/^\s+at (.*\()?node:|^\s+at .*node_modules[/\\]|^npm (ERR!|error)( (code|path|workspace|location|command|Lifecycle script|A complete log|errno)\b|\s*$)|^\s*ELIFECYCLE\b|^error Command failed with exit code|^info Visit https:\/\/yarnpkg\.com/;
 const NPM_BANNER = /^> \S*@\S* \S+$/;
 
 function quiet(text) {
 	const lines = text.replace(/\n\s*\n+/g, "\n").split("\n");
-	const kept = lines.filter((l, i) => !LOG_NOISE.test(l) && !NPM_BANNER.test(l) && !NPM_BANNER.test(lines[i - 1] ?? ""));
+	const kept = lines.filter((l, i) => !LOG_NOISE.test(l) && !NPM_BANNER.test(l) && !(l.startsWith("> ") && NPM_BANNER.test(lines[i - 1] ?? "")));
 	return (kept.some((l) => l.trim()) ? kept : lines).join("\n").replace(/^\s*\n/, "");
 }
 
@@ -634,7 +634,8 @@ function diffFiles(base) {
 	return [...tracked, ...extra];
 }
 
-const counted = (files) => files.map((f) => `${f.file} (+${f.add} -${f.del})`).join(", ");
+const counted = (files) =>
+	[...files.slice(0, 20).map((f) => `${f.file} (+${f.add} -${f.del})`), ...(files.length > 20 ? [`${files.length - 20} more`] : [])].join(", ");
 
 // Whole files in diff order, so one huge file cannot push every other change out of the brief.
 function reviewBrief(t, frame) {
@@ -653,7 +654,11 @@ function reviewBrief(t, frame) {
 			room -= f.text.length + 1;
 		}
 	}
-	if (over.length && room >= 2000) shown.push(`${over[0].text.slice(0, room)}\n… ${over[0].file} cut here`);
+	if (over.length && room >= 2000) {
+		const head = over[0].text.slice(0, over[0].text.lastIndexOf("\n", room));
+		const hidden = over[0].text.split("\n").length - head.split("\n").length;
+		shown.push(`${head}\n… ${over[0].file} cut here, ${hidden} more lines`);
+	}
 	out(`Review this diff. Report only PR blockers and meaningful risks.
 INTENT    ${t?.goal ?? "(infer from the diff and commit messages)"}${frame ? `\nCRITERIA  ${frame}` : ""}
 CHECK     correctness and edge cases · races · security/data loss · needless complexity · behavior-level tests
